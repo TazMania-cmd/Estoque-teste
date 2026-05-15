@@ -90,14 +90,88 @@ export async function fetchProducts(): Promise<KnifeProduct[]> {
   return data || [];
 }
 
-export async function updateProductStock(id: string, newStock: number) {
-  const { error } = await supabase
+export async function addProduct(product: Omit<KnifeProduct, "id">) {
+  const { data, error } = await supabase
+    .from("products")
+    .insert([product])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateProductStock(
+  id: string, 
+  newStock: number, 
+  actionType: string, 
+  quantity: number,
+  previousStock: number
+) {
+  // 1. Atualiza o produto
+  const { error: updateError } = await supabase
     .from("products")
     .update({ estoqueAtual: newStock })
     .eq("id", id);
 
-  if (error) {
-    console.error("Erro ao atualizar estoque:", error);
-    throw error;
-  }
+  if (updateError) throw updateError;
+
+  // 2. Registra no histórico
+  const { error: logError } = await supabase
+    .from("inventory_logs")
+    .insert([{
+      productId: id,
+      tipo: actionType,
+      quantidade: quantity,
+      estoqueAnterior: previousStock,
+      estoqueNovo: newStock
+    }]);
+
+  if (logError) console.error("Erro ao gerar log:", logError);
+}
+
+export async function fetchLogs() {
+  const { data, error } = await supabase
+    .from("inventory_logs")
+    .select(`
+      *,
+      products ( nome )
+    `)
+    .order("createdAt", { ascending: false })
+    .limit(50);
+
+  if (error) throw error;
+  return data;
+}
+
+export async function revertLog(logId: string) {
+  // 1. Busca o log original
+  const { data: log, error: fetchError } = await supabase
+    .from("inventory_logs")
+    .select("*")
+    .eq("id", logId)
+    .single();
+
+  if (fetchError) throw fetchError;
+
+  // 2. Busca o estoque atual do produto
+  const { data: product, error: prodError } = await supabase
+    .from("products")
+    .select("estoqueAtual")
+    .eq("id", log.productId)
+    .single();
+
+  if (prodError) throw prodError;
+
+  // 3. Calcula o estorno
+  // Se o log foi uma adição (entrada/remover-compra), subtraímos. 
+  // Se foi uma subtração (venda/remover-lote), somamos.
+  const diff = log.estoqueNovo - log.estoqueAnterior;
+  const revertedStock = Math.max(0, product.estoqueAtual - diff);
+
+  // 4. Atualiza o produto
+  await supabase.from("products").update({ estoqueAtual: revertedStock }).eq("id", log.productId);
+
+  // 5. Remove o log ou marca como revertido (vamos remover para simplificar)
+  await supabase.from("inventory_logs").delete().eq("id", logId);
 }
