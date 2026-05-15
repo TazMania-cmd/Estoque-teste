@@ -1,4 +1,5 @@
 import type { KnifeProduct } from "./types";
+import { supabase } from "./supabase";
 
 export const INITIAL_PRODUCTS: KnifeProduct[] = [
   {
@@ -74,3 +75,29 @@ export const INITIAL_PRODUCTS: KnifeProduct[] = [
     leadTimeDias: 0,
   },
 ];
+
+export async function fetchProducts(): Promise<KnifeProduct[]> {
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .order("nome");
+
+  if (error) {
+    console.error("Erro ao buscar produtos:", error);
+    return INITIAL_PRODUCTS;
+  }
+
+  return data || [];
+}
+
+export async function updateProductStock(id: string, newStock: number) {
+  const { error } = await supabase
+    .from("products")
+    .update({ estoqueAtual: newStock })
+    .eq("id", id);
+
+  if (error) {
+    console.error("Erro ao atualizar estoque:", error);
+    throw error;
+  }
+}

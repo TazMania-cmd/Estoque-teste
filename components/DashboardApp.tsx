@@ -8,12 +8,12 @@ import {
   ShoppingCart,
   Wallet,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActionModal } from "@/components/ActionModal";
 import { InventoryTable } from "@/components/InventoryTable";
 import { PurchasesPanel } from "@/components/PurchasesPanel";
 import { StatCard } from "@/components/StatCard";
-import { INITIAL_PRODUCTS } from "@/lib/data";
+import { fetchProducts, INITIAL_PRODUCTS, updateProductStock } from "@/lib/data";
 import { calcularDashboard, precisaReposicao } from "@/lib/inventory";
 import { calcularDelta, type StockActionType } from "@/lib/stock-actions";
 import type { KnifeProduct } from "@/lib/types";
@@ -26,9 +26,19 @@ function formatBRL(value: number) {
 
 export function DashboardApp() {
   const [products, setProducts] = useState<KnifeProduct[]>(INITIAL_PRODUCTS);
+  const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("inventario");
   const [modalType, setModalType] = useState<StockActionType | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      const data = await fetchProducts();
+      setProducts(data);
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   const dashboard = useMemo(() => calcularDashboard(products), [products]);
 
@@ -44,20 +54,41 @@ export function DashboardApp() {
     setModalType(type);
   }
 
-  function handleConfirm(
+  async function handleConfirm(
     productId: string,
     quantity: number,
     action: StockActionType,
   ) {
     const delta = calcularDelta(action, quantity);
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
+    const newStock = Math.max(0, product.estoqueAtual + delta);
+
+    // Otimista: atualiza localmente primeiro
     setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== productId) return p;
-        return {
-          ...p,
-          estoqueAtual: Math.max(0, p.estoqueAtual + delta),
-        };
-      }),
+      prev.map((p) => (p.id === productId ? { ...p, estoqueAtual: newStock } : p))
+    );
+
+    try {
+      await updateProductStock(productId, newStock);
+    } catch (err) {
+      // Reverte em caso de erro
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? product : p))
+      );
+      alert("Erro ao atualizar o estoque no banco de dados.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-slate-900 border-t-transparent mx-auto"></div>
+          <p className="text-slate-600 font-medium">Carregando estoque...</p>
+        </div>
+      </div>
     );
   }
 
