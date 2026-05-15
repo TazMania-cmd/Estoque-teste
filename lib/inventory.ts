@@ -21,9 +21,11 @@ export function calcularStatus(produto: KnifeProduct): StockStatus {
 }
 
 export function enrichProduct(produto: KnifeProduct): ProductWithStatus {
+  const status = calcularStatus(produto);
   return {
     ...produto,
-    status: calcularStatus(produto),
+    status,
+    alerta: status !== "ok", // Adicionando o campo que estava faltando
     quantidadeSugerida: calcularQuantidadeSugerida(produto),
     valorInvestidoItem: produto.precoCusto * produto.estoqueAtual,
   };
@@ -43,16 +45,12 @@ export function calcularDashboard(produtos: KnifeProduct[]) {
   );
   const abaixoMinimo = enriched.filter((p) => p.status === "urgent").length;
   const emAtencao = enriched.filter((p) => p.status === "attention").length;
-  const pedidoSugeridoValor = enriched
-    .filter(precisaReposicao)
-    .reduce((s, p) => s + p.quantidadeSugerida * p.precoCusto, 0);
 
   return {
     totalUnidades,
     valorInvestido,
     abaixoMinimo,
     emAtencao,
-    pedidoSugeridoValor,
     enriched,
   };
 }

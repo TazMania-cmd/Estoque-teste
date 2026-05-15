@@ -91,20 +91,33 @@ export async function fetchProducts(): Promise<KnifeProduct[]> {
 }
 
 export async function addProduct(product: Omit<KnifeProduct, "id">) {
-  const { data, error } = await supabase
+  // 1. Insere o produto
+  const { data: newProduct, error } = await supabase
     .from("products")
     .insert([product])
     .select()
     .single();
 
   if (error) throw error;
-  return data;
+
+  // 2. Registra a criação no histórico (se tiver estoque inicial > 0)
+  if (newProduct) {
+    await supabase.from("inventory_logs").insert([{
+      productId: newProduct.id,
+      tipo: "entrada", // Registramos como entrada inicial
+      quantidade: newProduct.estoqueAtual,
+      estoqueAnterior: 0,
+      estoqueNovo: newProduct.estoqueAtual
+    }]);
+  }
+
+  return newProduct;
 }
 
 export async function updateProductStock(
-  id: string, 
-  newStock: number, 
-  actionType: string, 
+  id: string,
+  newStock: number,
+  actionType: string,
   quantity: number,
   previousStock: number
 ) {
@@ -127,7 +140,10 @@ export async function updateProductStock(
       estoqueNovo: newStock
     }]);
 
-  if (logError) console.error("Erro ao gerar log:", logError);
+  if (logError) {
+    console.error("Erro ao gerar log:", logError);
+    alert("O estoque foi atualizado, mas o histórico falhou. Verifique se a tabela 'inventory_logs' existe no Supabase.");
+  }
 }
 
 export async function fetchLogs() {
@@ -174,4 +190,64 @@ export async function revertLog(logId: string) {
 
   // 5. Remove o log ou marca como revertido (vamos remover para simplificar)
   await supabase.from("inventory_logs").delete().eq("id", logId);
+}
+
+export async function deleteProduct(productId: string) {
+  const { error } = await supabase
+    .from("products")
+    .delete()
+    .eq("id", productId);
+
+  if (error) throw error;
+}
+
+// --- ENCOMENDAS ---
+
+export async function fetchCustomOrders() {
+  const { data, error } = await supabase
+    .from("custom_orders")
+    .select("*")
+    .order("dataPedido", { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addCustomOrder(order: any) {
+  const { data, error } = await supabase
+    .from("custom_orders")
+    .insert([order])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateCustomOrderStatus(orderId: string, status: string) {
+  const { error } = await supabase
+    .from("custom_orders")
+    .update({ status })
+    .eq("id", orderId);
+
+  if (error) throw error;
+}
+
+export async function deleteCustomOrder(orderId: string) {
+  const { error } = await supabase
+    .from("custom_orders")
+    .delete()
+    .eq("id", orderId);
+
+  if (error) throw error;
+}
+
+export async function clearLogs() {
+  // Para deletar tudo no Supabase de forma segura, usamos um filtro que sempre bate
+  const { error } = await supabase
+    .from("inventory_logs")
+    .delete()
+    .neq("id", "00000000-0000-0000-0000-000000000000"); // Filtro genérico para ignorar IDs inexistentes e deletar o resto
+
+  if (error) throw error;
 }

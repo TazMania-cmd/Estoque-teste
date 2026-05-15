@@ -1,26 +1,33 @@
+"use client";
+
 import {
   AlertTriangle,
   Boxes,
+  Clock,
   History as HistoryIcon,
   LayoutDashboard,
   Package,
   Plus,
   ShoppingCart,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ActionModal } from "@/components/ActionModal";
 import { AddProductModal } from "@/components/AddProductModal";
+import { ConfirmModal } from "@/components/ConfirmModal";
+import { CustomOrdersPanel } from "@/components/CustomOrdersPanel";
 import { InventoryTable } from "@/components/InventoryTable";
 import { PurchasesPanel } from "@/components/PurchasesPanel";
 import { HistoryPanel } from "@/components/HistoryPanel";
+import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { StatCard } from "@/components/StatCard";
-import { fetchProducts, fetchLogs, INITIAL_PRODUCTS, updateProductStock, revertLog, addProduct } from "@/lib/data";
+import { fetchProducts, fetchLogs, fetchCustomOrders, addCustomOrder, updateCustomOrderStatus, deleteCustomOrder, clearLogs, INITIAL_PRODUCTS, updateProductStock, revertLog, addProduct, deleteProduct } from "@/lib/data";
 import { calcularDashboard, precisaReposicao } from "@/lib/inventory";
 import { calcularDelta, type StockActionType } from "@/lib/stock-actions";
 import type { KnifeProduct } from "@/lib/types";
 
-type Tab = "inventario" | "compras" | "historico";
+type Tab = "inventario" | "compras" | "historico" | "encomendas" | "analise";
 
 function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -29,19 +36,33 @@ function formatBRL(value: number) {
 export function DashboardApp() {
   const [products, setProducts] = useState<KnifeProduct[]>(INITIAL_PRODUCTS);
   const [logs, setLogs] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>("inventario");
+  const [tab, setTab] = useState<Tab>("analise");
   const [modalType, setModalType] = useState<StockActionType | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    title: "",
+    message: "",
+    onConfirm: () => { }
+  });
 
   async function loadData() {
     try {
       const data = await fetchProducts();
       setProducts(data);
-      if (tab === "historico") {
+
+      if (tab === "historico" || tab === "analise") {
         const historyData = await fetchLogs();
         setLogs(historyData);
+      }
+
+      if (tab === "encomendas") {
+        const ordersData = await fetchCustomOrders();
+        setOrders(ordersData);
       }
     } catch (err) {
       console.error(err);
@@ -60,6 +81,12 @@ export function DashboardApp() {
     () => dashboard.enriched.filter(precisaReposicao),
     [dashboard.enriched],
   );
+
+  const totalEncomendas = useMemo(() => {
+    return orders
+      .filter(o => o.status !== "entregue")
+      .reduce((acc, curr) => acc + (Number(curr.valor) || 0), 0);
+  }, [orders]);
 
   const selectedProduct = products.find((p) => p.id === selectedId) ?? null;
 
@@ -102,16 +129,94 @@ export function DashboardApp() {
   }
 
   async function handleRevert(logId: string) {
-    if (!confirm("Tem certeza que deseja reverter esta movimentação?")) return;
+    setConfirmConfig({
+      title: "Reverter Movimentação?",
+      message: "Isso irá estornar o estoque e apagar este registro permanentemente.",
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          await revertLog(logId);
+          await loadData();
+        } catch (err) {
+          alert("Erro ao reverter movimentação.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+    setIsConfirmOpen(true);
+  }
+
+  async function handleDeleteProduct(id: string) {
+    setConfirmConfig({
+      title: "Excluir Produto?",
+      message: "Esta ação não pode ser desfeita e removerá todo o histórico do produto.",
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          await deleteProduct(id);
+          await loadData();
+        } catch (err) {
+          alert("Erro ao excluir produto.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+    setIsConfirmOpen(true);
+  }
+
+  async function handleClearLogs() {
+    setConfirmConfig({
+      title: "Limpar todo o Histórico?",
+      message: "Esta ação apagará permanentemente todos os registros de movimentação. Isso não afeta o estoque atual dos produtos.",
+      onConfirm: async () => {
+        try {
+          setLoading(true);
+          await clearLogs();
+          await loadData();
+        } catch (err) {
+          alert("Erro ao limpar histórico.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+    setIsConfirmOpen(true);
+  }
+
+  async function handleAddOrder(order: any) {
     try {
-      setLoading(true);
-      await revertLog(logId);
+      await addCustomOrder(order);
       await loadData();
     } catch (err) {
-      alert("Erro ao reverter movimentação.");
-    } finally {
-      setLoading(false);
+      alert("Erro ao criar encomenda.");
     }
+  }
+
+  async function handleUpdateOrderStatus(id: string, status: string) {
+    try {
+      await updateCustomOrderStatus(id, status);
+      await loadData();
+    } catch (err) {
+      alert("Erro ao atualizar status.");
+    }
+  }
+
+  async function handleDeleteOrder(id: string) {
+    setConfirmConfig({
+      title: "Excluir Encomenda?",
+      message: "Deseja mesmo remover este pedido? Esta ação é definitiva.",
+      onConfirm: async () => {
+        try {
+          await deleteCustomOrder(id);
+          await loadData();
+        } catch (err) {
+          alert("Erro ao excluir encomenda.");
+        }
+      }
+    });
+    setIsConfirmOpen(true);
   }
 
   if (loading && products.length === 0) {
@@ -137,7 +242,7 @@ export function DashboardApp() {
             Controle de Estoque
           </h1>
         </div>
-        
+
         <button
           onClick={() => setIsAddModalOpen(true)}
           className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 transition-all shadow-sm active:scale-95"
@@ -147,32 +252,39 @@ export function DashboardApp() {
         </button>
       </header>
 
-      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard
           title="Total em estoque"
           value={`${dashboard.totalUnidades} un.`}
-          subtitle={`${products.length} referências cadastradas`}
+          subtitle={`${products.length} referências`}
           icon={Boxes}
           accent="blue"
         />
         <StatCard
           title="Valor investido"
           value={formatBRL(dashboard.valorInvestido)}
-          subtitle="Soma do custo × quantidade"
+          subtitle="Custo × Quantidade"
           icon={Wallet}
           accent="slate"
         />
         <StatCard
+          title="Encomendas Ativas"
+          value={formatBRL(totalEncomendas)}
+          subtitle={`${orders.filter(o => o.status !== "entregue").length} pedidos em andamento`}
+          icon={Clock}
+          accent="purple"
+        />
+        <StatCard
           title="Abaixo do mínimo"
           value={String(dashboard.abaixoMinimo)}
-          subtitle="Repor urgente — pedir agora"
+          subtitle="Repor urgente"
           icon={AlertTriangle}
           accent="red"
         />
         <StatCard
           title="Em atenção"
           value={String(dashboard.emAtencao)}
-          subtitle={`${reposicao.length} itens no radar de compras`}
+          subtitle={`${reposicao.length} itens no radar`}
           icon={LayoutDashboard}
           accent="amber"
         />
@@ -180,7 +292,9 @@ export function DashboardApp() {
 
       <nav className="mb-6 flex gap-2 border-b border-slate-200 overflow-x-auto">
         {[
+          { id: "analise", label: "Inteligência", icon: TrendingUp },
           { id: "inventario", label: "Inventário", icon: LayoutDashboard },
+          { id: "encomendas", label: "Encomendas", icon: Clock },
           { id: "compras", label: "Compras", icon: ShoppingCart, count: reposicao.length },
           { id: "historico", label: "Histórico", icon: HistoryIcon },
         ].map((t) => (
@@ -213,14 +327,26 @@ export function DashboardApp() {
             <InventoryTable
               products={dashboard.enriched}
               onAction={openModal}
+              onDelete={handleDeleteProduct}
             />
           </>
         )}
-        
+
         {tab === "compras" && <PurchasesPanel products={reposicao} />}
-        
+
+        {tab === "analise" && <AnalyticsPanel products={products} logs={logs} />}
+
         {tab === "historico" && (
-          <HistoryPanel logs={logs} onRevert={handleRevert} />
+          <HistoryPanel logs={logs} onRevert={handleRevert} onClear={handleClearLogs} />
+        )}
+
+        {tab === "encomendas" && (
+          <CustomOrdersPanel
+            orders={orders}
+            onAdd={handleAddOrder}
+            onUpdateStatus={handleUpdateOrderStatus}
+            onDelete={handleDeleteOrder}
+          />
         )}
       </div>
 
@@ -239,6 +365,14 @@ export function DashboardApp() {
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onConfirm={handleAddProduct}
+      />
+
+      <ConfirmModal
+        open={isConfirmOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmConfig.onConfirm}
       />
 
       <footer className="mt-12 text-center text-xs text-slate-400">

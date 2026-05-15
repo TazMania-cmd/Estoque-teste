@@ -1,169 +1,129 @@
 "use client";
 
-import {
-  PackageMinus,
-  PackagePlus,
-  RotateCcw,
-  ShoppingCart,
-  X,
-} from "lucide-react";
-import { useEffect, useState } from "react";
-import {
-  STOCK_ACTION_CONFIG,
-  type StockActionType,
-} from "@/lib/stock-actions";
+import { X, PackagePlus, ShoppingBag, Undo2, AlertCircle } from "lucide-react";
+import { useState } from "react";
 import type { KnifeProduct } from "@/lib/types";
+import type { StockActionType } from "@/lib/stock-actions";
 
 interface ActionModalProps {
   open: boolean;
   type: StockActionType;
   product: KnifeProduct | null;
   onClose: () => void;
-  onConfirm: (
-    productId: string,
-    quantity: number,
-    type: StockActionType,
-  ) => void;
+  onConfirm: (productId: string, quantity: number, action: StockActionType) => void;
 }
 
-const ICONS = {
-  entrada: PackagePlus,
-  venda: ShoppingCart,
-  "remover-lote": PackageMinus,
-  "remover-compra": RotateCcw,
-} as const;
-
-const STYLES: Record<
-  StockActionType,
-  { icon: string; button: string }
-> = {
-  entrada: {
-    icon: "bg-emerald-100 text-emerald-700",
-    button: "bg-emerald-600 hover:bg-emerald-700",
-  },
-  venda: {
-    icon: "bg-blue-100 text-blue-700",
-    button: "bg-blue-600 hover:bg-blue-700",
-  },
-  "remover-lote": {
-    icon: "bg-orange-100 text-orange-700",
-    button: "bg-orange-600 hover:bg-orange-700",
-  },
-  "remover-compra": {
-    icon: "bg-violet-100 text-violet-700",
-    button: "bg-violet-600 hover:bg-violet-700",
-  },
-};
-
-export function ActionModal({
-  open,
-  type,
-  product,
-  onClose,
-  onConfirm,
-}: ActionModalProps) {
-  const [quantity, setQuantity] = useState(1);
-
-  useEffect(() => {
-    if (open) setQuantity(1);
-  }, [open, product?.id, type]);
+export function ActionModal({ open, type, product, onClose, onConfirm }: ActionModalProps) {
+  const [quantity, setQuantity] = useState<number>(0);
 
   if (!open || !product) return null;
 
-  const config = STOCK_ACTION_CONFIG[type];
-  const Icon = ICONS[type];
-  const style = STYLES[type];
-  const maxQty = config.limitsToCurrentStock ? product.estoqueAtual : 9999;
-  const exceedsStock =
-    config.limitsToCurrentStock && quantity > product.estoqueAtual;
+  const isVenda = type === "venda";
+  const hasEnoughStock = isVenda ? product.estoqueAtual >= quantity : true;
+  const isStockEmpty = isVenda && product.estoqueAtual <= 0;
 
-  function handleSubmit(e: React.FormEvent) {
+  const config = {
+    entrada: { title: "Entrada de Lote", icon: PackagePlus, color: "bg-emerald-50 text-emerald-600" },
+    venda: { title: "Registrar Venda", icon: ShoppingBag, color: "bg-blue-50 text-blue-600" },
+    "remover-lote": { title: "Remover Lote", icon: Undo2, color: "bg-amber-50 text-amber-600" },
+    "remover-compra": { title: "Remover Venda", icon: Undo2, color: "bg-purple-50 text-purple-600" },
+  };
+
+  const current = config[type];
+  const Icon = current.icon;
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Ensure the product exists before accessing its fields.
-    if (!product) return;
-    if (quantity < 1 || exceedsStock) return;
-    onConfirm(product.id, quantity, type);
-    onClose();
-  }
+    if (quantity > 0 && hasEnoughStock) {
+      onConfirm(product.id, quantity, type);
+      setQuantity(0);
+    }
+  };
 
   return (
-    <section className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Fechar"
-        className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <article className="relative w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-        >
-          <X className="h-5 w-5" />
-        </button>
-
-        <header className="mb-4 flex items-center gap-3">
-          <span
-            className={`flex h-10 w-10 items-center justify-center rounded-lg ${style.icon}`}
-          >
-            <Icon className="h-5 w-5" />
-          </span>
-          <span>
-            <h2 className="text-lg font-semibold text-slate-900">
-              {config.title}
-            </h2>
-            <p className="text-sm text-slate-500 line-clamp-2">{product.nome}</p>
-          </span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
+      
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+        <header className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${current.color}`}>
+              <Icon className="h-5 w-5" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">{current.title}</h2>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 transition-colors">
+            <X className="h-5 w-5" />
+          </button>
         </header>
 
-        <p className="mb-3 text-sm text-slate-600">{config.description}</p>
-
-        <p className="mb-4 text-sm text-slate-600">
-          Estoque atual:{" "}
-          <strong className="text-slate-900">{product.estoqueAtual} un.</strong>
-        </p>
+        <div className="mb-6 rounded-xl bg-slate-50 p-4">
+          <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Produto</p>
+          <p className="text-lg font-bold text-slate-900">{product.nome}</p>
+          <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold shadow-sm ${isStockEmpty ? 'bg-red-50 text-red-600' : 'bg-white text-slate-600'}`}>
+            Estoque atual: {product.estoqueAtual} un.
+          </div>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <label className="block">
-            <span className="text-sm font-medium text-slate-700">
-              Quantidade
-            </span>
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Quantidade</label>
             <input
+              autoFocus
               type="number"
-              min={1}
-              max={maxQty}
-              value={quantity}
+              min="1"
+              max={isVenda ? product.estoqueAtual : undefined}
+              value={quantity || ""}
               onChange={(e) => setQuantity(Number(e.target.value))}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-200"
+              className={`mt-1 w-full rounded-xl border px-4 py-3 text-lg font-bold transition-all focus:ring-0 ${
+                !hasEnoughStock 
+                ? "border-red-300 bg-red-50 text-red-900 focus:border-red-500" 
+                : "border-slate-200 bg-white text-slate-900 focus:border-slate-900"
+              }`}
+              placeholder="0"
             />
-          </label>
+            {!hasEnoughStock && (
+              <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-red-600">
+                <AlertCircle className="h-3.5 w-3.5" />
+                Quantidade indisponível no estoque!
+              </p>
+            )}
+          </div>
 
-          {exceedsStock ? (
-            <p className="text-sm text-red-600">
-              Quantidade maior que o estoque disponível ({product.estoqueAtual}{" "}
-              un.).
-            </p>
-          ) : null}
+          {quantity > 0 && (
+            <div className={`rounded-xl p-4 transition-all animate-in fade-in slide-in-from-bottom-2 ${isVenda ? 'bg-blue-50 border border-blue-100' : 'bg-emerald-50 border border-emerald-100'}`}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-600">
+                  {isVenda ? "Valor Total da Venda" : "Investimento do Lote"}
+                </span>
+                <span className={`text-lg font-bold ${isVenda ? 'text-blue-700' : 'text-emerald-700'}`}>
+                  {(quantity * (isVenda ? product.precoVenda : product.precoCusto)).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </span>
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400 uppercase tracking-wider font-bold">
+                {quantity} un. × { (isVenda ? product.precoVenda : product.precoCusto).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) }
+              </p>
+            </div>
+          )}
 
-          <span className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              disabled={exceedsStock || quantity < 1}
-              className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50 ${style.button}`}
+              disabled={!quantity || !hasEnoughStock || isStockEmpty}
+              className="flex-1 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition-all shadow-sm active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100"
             >
-              {config.confirmLabel}
+              Confirmar
             </button>
-          </span>
+          </div>
         </form>
-      </article>
-    </section>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { X, PlusCircle } from "lucide-react";
+import { X } from "lucide-react";
 import { useState } from "react";
 import type { KnifeProduct } from "@/lib/types";
 
@@ -11,133 +11,138 @@ interface AddProductModalProps {
 }
 
 export function AddProductModal({ open, onClose, onConfirm }: AddProductModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Omit<KnifeProduct, "id">>({
     nome: "",
     precoCusto: 0,
     precoVenda: 0,
-    estoqueAtual: 0,
-    estoqueMinimo: 0,
+    estoqueAtual: "" as any,
+    estoqueMinimo: "" as any,
     leadTimeDias: 0,
   });
 
   if (!open) return null;
 
-  function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onConfirm(formData);
+    onConfirm({
+      ...formData,
+      estoqueAtual: Number(formData.estoqueAtual) || 0,
+      estoqueMinimo: Number(formData.estoqueMinimo) || 0,
+    });
     setFormData({
       nome: "",
       precoCusto: 0,
       precoVenda: 0,
-      estoqueAtual: 0,
-      estoqueMinimo: 0,
+      estoqueAtual: "" as any,
+      estoqueMinimo: "" as any,
       leadTimeDias: 0,
     });
-  }
+  };
 
   return (
-    <section className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <article className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-        <button onClick={onClose} className="absolute right-4 top-4 rounded-lg p-1 text-slate-400 hover:bg-slate-100">
-          <X className="h-5 w-5" />
-        </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose} />
 
-        <header className="mb-6 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-white">
-            <PlusCircle className="h-6 w-6" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900">Novo Produto</h2>
-            <p className="text-sm text-slate-500">Cadastre uma nova faca no sistema</p>
-          </div>
+      <div className="relative w-full max-w-lg rounded-2xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200 dark:bg-slate-900 dark:border dark:border-slate-800">
+        <header className="mb-8 flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Novo Produto</h2>
+          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <X className="h-6 w-6" />
+          </button>
         </header>
 
-        <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-slate-700">Nome da Faca</label>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nome do Produto</label>
             <input
               required
-              type="text"
+              autoFocus
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5 focus:border-slate-900 focus:ring-0"
-              placeholder="Ex: Faca Gaúcha 10 polegadas"
+              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white dark:focus:border-slate-100"
+              placeholder="Ex: Faca Gaúcha 10' Aço Carbono"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Preço Custo (R$)</label>
-            <input
-              required
-              type="number"
-              value={formData.precoCusto}
-              onChange={(e) => setFormData({ ...formData, precoCusto: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Preço Custo</label>
+              <div className="relative mt-1">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                <input
+                  required
+                  type="text"
+                  value={Number(formData.precoCusto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  onChange={(e) => {
+                    const cleanValue = e.target.value.replace(/\D/g, "");
+                    setFormData({ ...formData, precoCusto: Number(cleanValue) / 100 });
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white dark:focus:border-slate-100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Preço Venda</label>
+              <div className="relative mt-1">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R$</span>
+                <input
+                  required
+                  type="text"
+                  value={Number(formData.precoVenda).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  onChange={(e) => {
+                    const cleanValue = e.target.value.replace(/\D/g, "");
+                    setFormData({ ...formData, precoVenda: Number(cleanValue) / 100 });
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-white pl-10 pr-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white dark:focus:border-slate-100"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Preço Venda (R$)</label>
-            <input
-              required
-              type="number"
-              value={formData.precoVenda}
-              onChange={(e) => setFormData({ ...formData, precoVenda: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5"
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Estoque Inicial</label>
+              <input
+                required
+                type="number"
+                value={formData.estoqueAtual}
+                onChange={(e) => setFormData({ ...formData, estoqueAtual: e.target.value === "" ? "" as any : Number(e.target.value) })}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white dark:focus:border-slate-100"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Estoque Mínimo</label>
+              <input
+                required
+                type="number"
+                value={formData.estoqueMinimo}
+                onChange={(e) => setFormData({ ...formData, estoqueMinimo: e.target.value === "" ? "" as any : Number(e.target.value) })}
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 dark:bg-slate-950 dark:border-slate-800 dark:text-white dark:focus:border-slate-100"
+                placeholder="Ex: 5"
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Estoque Inicial</label>
-            <input
-              required
-              type="number"
-              value={formData.estoqueAtual}
-              onChange={(e) => setFormData({ ...formData, estoqueAtual: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700">Estoque Mínimo</label>
-            <input
-              required
-              type="number"
-              value={formData.estoqueMinimo}
-              onChange={(e) => setFormData({ ...formData, estoqueMinimo: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5"
-            />
-          </div>
-
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-slate-700">Lead Time (Dias para entrega)</label>
-            <input
-              required
-              type="number"
-              value={formData.leadTimeDias}
-              onChange={(e) => setFormData({ ...formData, leadTimeDias: Number(e.target.value) })}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2.5"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-4 sm:col-span-2">
+          <div className="flex gap-4 pt-4">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800 transition-all"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 rounded-xl bg-slate-900 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+              className="flex-1 rounded-xl bg-slate-900 dark:bg-slate-100 py-3 text-sm font-semibold text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-white transition-all shadow-sm active:scale-95"
             >
-              Salvar Produto
+              Cadastrar Produto
             </button>
           </div>
         </form>
-      </article>
-    </section>
+      </div>
+    </div>
   );
 }
