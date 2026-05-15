@@ -124,11 +124,10 @@ export function DashboardApp() {
         <button
           type="button"
           onClick={() => setTab("inventario")}
-          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "inventario"
-              ? "border-slate-900 text-slate-900"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
+          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${tab === "inventario"
+            ? "border-slate-900 text-slate-900"
+            : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
         >
           <LayoutDashboard className="h-4 w-4" />
           Inventário
@@ -136,11 +135,10 @@ export function DashboardApp() {
         <button
           type="button"
           onClick={() => setTab("compras")}
-          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-            tab === "compras"
-              ? "border-slate-900 text-slate-900"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
+          className={`inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${tab === "compras"
+            ? "border-slate-900 text-slate-900"
+            : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
         >
           <ShoppingCart className="h-4 w-4" />
           Compras

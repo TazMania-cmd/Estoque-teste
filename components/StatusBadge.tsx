@@ -1,4 +1,5 @@
-import { STATUS_LABELS, type StockStatus } from "@/lib/inventory";
+import { STATUS_LABELS } from "@/lib/inventory";
+import type { StockStatus } from "@/lib/types";
 
 const styles: Record<StockStatus, string> = {
   ok: "bg-emerald-100 text-emerald-800 ring-emerald-600/20",

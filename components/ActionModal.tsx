@@ -79,6 +79,8 @@ export function ActionModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // Ensure the product exists before accessing its fields.
+    if (!product) return;
     if (quantity < 1 || exceedsStock) return;
     onConfirm(product.id, quantity, type);
     onClose();
