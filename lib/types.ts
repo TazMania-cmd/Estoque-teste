@@ -12,6 +12,7 @@ export interface KnifeProduct {
 
 export interface ProductWithStatus extends KnifeProduct {
   status: StockStatus;
+  alerta: boolean;
   quantidadeSugerida: number;
   valorInvestidoItem: number;
 }
