@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase client – works both on server and client (NEXT_PUBLIC_ variables are exposed to the browser)
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ''
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'placeholder-key';
+
+// Supabase client – works both on server and client
+export const supabase = createClient(supabaseUrl, supabaseKey);
