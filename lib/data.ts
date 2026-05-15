@@ -114,6 +114,15 @@ export async function addProduct(product: Omit<KnifeProduct, "id">) {
   return newProduct;
 }
 
+export async function updateProduct(id: string, updates: Partial<KnifeProduct>) {
+  const { error } = await supabase
+    .from("products")
+    .update(updates)
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
 export async function updateProductStock(
   id: string,
   newStock: number,

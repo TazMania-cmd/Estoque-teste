@@ -1,12 +1,11 @@
-"use client";
-
-import { Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import type { ProductWithStatus } from "@/lib/types";
 import type { StockActionType } from "@/lib/stock-actions";
 
 interface InventoryTableProps {
   products: ProductWithStatus[];
   onAction: (type: StockActionType, id: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
@@ -14,7 +13,7 @@ function formatBRL(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-export function InventoryTable({ products, onAction, onDelete }: InventoryTableProps) {
+export function InventoryTable({ products, onAction, onEdit, onDelete }: InventoryTableProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -74,6 +73,13 @@ export function InventoryTable({ products, onAction, onDelete }: InventoryTableP
                       }`}
                     >
                       Venda
+                    </button>
+                    <button
+                      onClick={() => onEdit(product.id)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      title="Editar produto"
+                    >
+                      <Edit2 className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => onDelete(product.id)}

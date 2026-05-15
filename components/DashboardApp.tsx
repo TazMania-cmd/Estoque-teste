@@ -15,6 +15,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { ActionModal } from "@/components/ActionModal";
 import { AddProductModal } from "@/components/AddProductModal";
+import { EditProductModal } from "@/components/EditProductModal";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { CustomOrdersPanel } from "@/components/CustomOrdersPanel";
 import { InventoryTable } from "@/components/InventoryTable";
@@ -22,7 +23,7 @@ import { PurchasesPanel } from "@/components/PurchasesPanel";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { AnalyticsPanel } from "@/components/AnalyticsPanel";
 import { StatCard } from "@/components/StatCard";
-import { fetchProducts, fetchLogs, fetchCustomOrders, addCustomOrder, updateCustomOrderStatus, deleteCustomOrder, clearLogs, INITIAL_PRODUCTS, updateProductStock, revertLog, addProduct, deleteProduct } from "@/lib/data";
+import { fetchProducts, fetchLogs, fetchCustomOrders, addCustomOrder, updateCustomOrderStatus, deleteCustomOrder, clearLogs, INITIAL_PRODUCTS, updateProductStock, revertLog, addProduct, updateProduct, deleteProduct } from "@/lib/data";
 import { calcularDashboard, precisaReposicao } from "@/lib/inventory";
 import { calcularDelta, type StockActionType } from "@/lib/stock-actions";
 import type { KnifeProduct } from "@/lib/types";
@@ -41,6 +42,7 @@ export function DashboardApp() {
   const [tab, setTab] = useState<Tab>("analise");
   const [modalType, setModalType] = useState<StockActionType | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -123,6 +125,19 @@ export function DashboardApp() {
       setIsAddModalOpen(false);
     } catch (err) {
       alert("Erro ao cadastrar produto.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleEditProduct(id: string, updates: Partial<KnifeProduct>) {
+    try {
+      setLoading(true);
+      await updateProduct(id, updates);
+      await loadData();
+      setIsEditModalOpen(false);
+    } catch (err) {
+      alert("Erro ao atualizar produto.");
     } finally {
       setLoading(false);
     }
@@ -327,6 +342,10 @@ export function DashboardApp() {
             <InventoryTable
               products={dashboard.enriched}
               onAction={openModal}
+              onEdit={(id) => {
+                setSelectedId(id);
+                setIsEditModalOpen(true);
+              }}
               onDelete={handleDeleteProduct}
             />
           </>
@@ -365,6 +384,16 @@ export function DashboardApp() {
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onConfirm={handleAddProduct}
+      />
+
+      <EditProductModal
+        open={isEditModalOpen}
+        product={selectedProduct}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedId(null);
+        }}
+        onConfirm={handleEditProduct}
       />
 
       <ConfirmModal
